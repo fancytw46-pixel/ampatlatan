@@ -1,0 +1,52 @@
+name: Windows 10 Altyapili AE Runner (2019)
+
+on:
+  workflow_dispatch: # Manuel başlatma butonu
+
+jobs:
+  build:
+    runs-on: windows-2019 # Windows Server 2019 (Windows 10 Altyapısı)
+    timeout-minutes: 360
+
+    steps:
+    - name: Depoyu Klonla
+      uses: actions/checkout@v4
+
+    - name: Windows 10 Performans Optimizasyonu
+      run: |
+        echo "Gereksiz servisler ve efektler kapatılıyor..."
+        # Görsel efektleri kapatıp sistemi en iyi performansa alıyoruz
+        $path = "HKCU:\Control Panel\Desktop"
+        Set-ItemProperty -Path $path -Name "UserPreferencesMask" -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00))
+        
+        # Windows Defender korumasını kapatarak CPU'yu After Effects için rahatlatıyoruz
+        Set-MpPreference -DisableRealtimeMonitoring $true
+        echo "Optimizasyon tamamlandı."
+
+    - name: Tailscale Kurulumu
+      uses: tailscale/github-action@v2
+      with:
+        authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+    - name: Uzak Masaüstünü (RDP) Aktif Et
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        # RDP için kullanıcı adı ve şifre oluşturma
+        net user runneradmin "AE_Runner_2026!" /add
+        net localgroup administrators runneradmin /add
+
+    - name: Sistemi Acik Tut ve Izle
+      run: |
+        echo "Kullanıcı Adı: runneradmin"
+        echo "Şifre: AE_Runner_2026!"
+        echo "Windows Server 2019 (Windows 10) hazır. Tailscale üzerinden IP'yi alıp bağlanabilirsin."
+        
+        # 5 saat 50 dakika boyunca sistemi açık tutan döngü
+        $timeout = New-TimeSpan -Hours 5 -Minutes 50
+        $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+        while ($stopwatch.Elapsed -lt $timeout) {
+            Start-Sleep -Seconds 60
+            echo "Runner aktif... Kalan süre kontrol ediliyor. Geçen süre: $($stopwatch.Elapsed.ToString('hh\:mm\:ss'))"
+        }
+        
