@@ -1,4 +1,4 @@
-name: Windows Latest AE Runner (Sade Sunshine & Gamepad)
+name: Windows Latest AE Runner (Sunshine Pure Clean)
 
 on:
   workflow_dispatch:
@@ -24,14 +24,6 @@ jobs:
         Start-Process -FilePath ".\tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
         Start-Sleep -Seconds 10
         & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTHKEY }}" --accept-routes
-
-    - name: Moonlight Gamepad Sürücüsü Kurulumu (ViGEmBus)
-      run: |
-        echo "ViGEmBus gamepad sürücüsü indiriliyor..."
-        Invoke-WebRequest -Uri "https://github.com/ViGEm/ViGEmBus/releases/download/v1.22.0/ViGEmBusSetup_x64.msi" -OutFile "ViGEmBusSetup.msi"
-        echo "Sürücü arka planda sessizce kuruluyor..."
-        Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "ViGEmBusSetup.msi", "/qn", "/norestart" -Wait
-        echo "Gamepad sürücüsü hazır!"
 
     - name: Sunshine Kurulumu ve Otomatik Kimlik Tanımlama
       run: |
