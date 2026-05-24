@@ -1,4 +1,4 @@
-name: Windows Latest AE Runner (Sunshine Anti-Block)
+name: Windows Latest AE Runner (Sunshine Confirmed Link)
 
 on:
   workflow_dispatch:
@@ -25,20 +25,11 @@ jobs:
         Start-Sleep -Seconds 10
         & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTHKEY }}" --accept-routes
 
-    - name: Sunshine Kurulumu (Tarayıcı Taklidi ile Güvenli İndirme)
+    - name: Sunshine Kurulumu (Senin Getirdiğin Güncel Link)
       run: |
-        echo "GitHub korumasını geçmek için tarayıcı taklidi yapılıyor..."
-        # GitHub'ın bizi engellememesi için Chrome kullanıcı kimliği (User-Agent) ekliyoruz
-        $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        
-        try {
-            echo "Ana kaynaktan Sunshine indiriliyor..."
-            Invoke-WebRequest -UserAgent $userAgent -Uri "https://github.com/LizardByte/Sunshine/releases/download/v2025.1.0/sunshine-windows-x64-installer.exe" -OutFile "sunshine-setup.exe"
-        } catch {
-            echo "GitHub engeline takılındı! Yedek global CDN üzerinden indiriliyor..."
-            # GitHub engellerse devreye girecek olan kesin çözüm yedek link
-            Invoke-WebRequest -UserAgent $userAgent -Uri "https://web.archive.org/web/20250000000000/https://github.com/LizardByte/Sunshine/releases/download/v2025.1.0/sunshine-windows-x64-installer.exe" -OutFile "sunshine-setup.exe" -ErrorAction SilentlyContinue
-        }
+        echo "Senin bulduğun güncel Sunshine sürümü indiriliyor..."
+        # Tamamen senin verdiğin çalışan ve güncel link entegre edildi kanka
+        Invoke-WebRequest -Uri "https://github.com/LizardByte/Sunshine/releases/download/v2026.516.143833/Sunshine-Windows-AMD64-installer.exe" -OutFile "sunshine-setup.exe"
         
         echo "Sessiz kurulum başlatılıyor..."
         Start-Process -FilePath ".\sunshine-setup.exe" -ArgumentList "/S" -Wait
@@ -68,7 +59,7 @@ jobs:
       run: |
         $ip = (& "C:\Program Files\Tailscale\tailscale.exe" ip -4)
         echo "===================================================="
-        echo "🚀 SUNUCU ENGELLERİ AŞARAK HAZIRLANDI!"
+        echo "🚀 SUNUCU SENİN LİNKİNLE SORUNSUZ HAZIRLANDI!"
         echo "🔗 TAILSCALE IP ADRESİNİZ: $ip"
         echo "===================================================="
         echo "Kullanıcı Adı: aeuser"
