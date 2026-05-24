@@ -1,4 +1,4 @@
-name: Windows Latest AE Runner (Sunshine & Gamepad Ready)
+name: Windows Latest AE Runner (Sade Sunshine & Gamepad)
 
 on:
   workflow_dispatch:
@@ -25,25 +25,13 @@ jobs:
         Start-Sleep -Seconds 10
         & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTHKEY }}" --accept-routes
 
-    - name: Sanal Ekran Sürücüsü Kurulumu
-      run: |
-        echo "Sanal ekran sürücüsü güvenli kaynaktan indiriliyor..."
-        Invoke-WebRequest -Uri "https://github.com/itsmikethetech/Virtual-Display-Driver/releases/download/v23.12.2/VirtualDisplayDriver.zip" -OutFile "virtual-display.zip"
-        Expand-Archive -Path "virtual-display.zip" -DestinationPath "C:\VirtualDisplay"
-        cd C:\VirtualDisplay
-        pnputil /add-driver *.inf /install
-        echo "Sanal Monitör başarıyla aktif edildi."
-
     - name: Moonlight Gamepad Sürücüsü Kurulumu (ViGEmBus)
       run: |
         echo "ViGEmBus gamepad sürücüsü indiriliyor..."
-        # Moonlight için gerekli olan resmi sanal kol emülatör sürücüsü
         Invoke-WebRequest -Uri "https://github.com/ViGEm/ViGEmBus/releases/download/v1.22.0/ViGEmBusSetup_x64.msi" -OutFile "ViGEmBusSetup.msi"
-        
         echo "Sürücü arka planda sessizce kuruluyor..."
-        # /qn parametresi ile kullanıcıya hiçbir şey sormadan arka planda kurduruyoruz
         Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "ViGEmBusSetup.msi", "/qn", "/norestart" -Wait
-        echo "Gamepad sürücüsü başarıyla yüklendi!"
+        echo "Gamepad sürücüsü hazır!"
 
     - name: Sunshine Kurulumu ve Otomatik Kimlik Tanımlama
       run: |
@@ -52,9 +40,9 @@ jobs:
         Start-Process -FilePath ".\sunshine-setup.exe" -ArgumentList "/S" -Wait
         Start-Sleep -Seconds 5
         
-        echo "Sunshine kimlik bilgileri arka planda ayarlanıyor..."
-        & "C:\Program Files\Sunshine\sunshine.exe" --creds aeuser AERunner2026!
-        
+        echo "Sunshine kimlik bilgileri tanımlanıyor..."
+        & "C:\Program Files\Sunshine\sunshine.exe" --creds aeuser AERunner2026
+
         echo "Sunshine servisi başlatılıyor..."
         Start-Process -FilePath "C:\Program Files\Sunshine\sunshine.exe" -ArgumentList "--install-service" -Wait
         Start-Service -Name "Sunshine" -ErrorAction SilentlyContinue
@@ -65,20 +53,22 @@ jobs:
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
         
-        $Password = ConvertTo-SecureString "AERunner2026!" -AsPlainText -Force
-        New-LocalUser -Name "aeuser" -Password $Password -ErrorAction SilentlyContinue
-        Add-LocalGroupMember -Group "Administrators" -Member "aeuser" -ErrorAction SilentlyContinue
-        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "aeuser" -ErrorAction SilentlyContinue
+        if (-not (Get-LocalUser -Name "aeuser" -ErrorAction SilentlyContinue)) {
+            $Password = ConvertTo-SecureString "AERunner2026" -AsPlainText -Force
+            New-LocalUser -Name "aeuser" -Password $Password
+            Add-LocalGroupMember -Group "Administrators" -Member "aeuser"
+            Add-LocalGroupMember -Group "Remote Desktop Users" -Member "aeuser"
+        }
 
-    - name: Sistemi Acik Tut ve PIN Girişini Bekle
+    - name: Sistemi Acik Tut ve İzle
       run: |
         $ip = (& "C:\Program Files\Tailscale\tailscale.exe" ip -4)
         echo "===================================================="
-        echo "🚀 SUNUCU GAMEPAD DESTEĞİYLE BİRLİKTE HAZIR!"
+        echo "🚀 SUNUCU SÜRÜCÜSÜZ OLARAK HAZIR!"
         echo "🔗 TAILSCALE IP ADRESİNİZ: $ip"
         echo "===================================================="
         echo "Kullanıcı Adı: aeuser"
-        echo "Şifre: AERunner2026!"
+        echo "Şifre: AERunner2026"
         echo "===================================================="
         
         $timeout = New-TimeSpan -Hours 5 -Minutes 50
