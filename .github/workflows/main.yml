@@ -1,4 +1,4 @@
-name: Windows Latest AE Runner (Lag Optimized)
+name: Windows Latest AE Runner (Fixed RDP)
 
 on:
   workflow_dispatch:
@@ -19,13 +19,9 @@ jobs:
         Set-ItemProperty -Path $path -Name "UserPreferencesMask" -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00))
         Set-MpPreference -DisableRealtimeMonitoring $true
         
-        echo "RDP Performans ve Akıcılık Ayarları Yapılıyor..."
-        # RDP bağlantısında performansı artırmak için ağ ve görüntü sıkıştırma ayarları
         $RDPPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services"
         if (-not (Test-Path $RDPPath)) { New-Item -Path $RDPPath -Force }
         Set-ItemProperty -Path $RDPPath -Name "MinEncryptionLevel" -Value 1
-        
-        # Ağ paket gecikmelerini (Lag) azaltmak için TCP optimizasyonu
         Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Value 0xFFFFFFFF
         echo "Optimizasyon tamamlandı."
 
@@ -33,29 +29,31 @@ jobs:
       run: |
         echo "Tailscale Windows yukleyicisi indiriliyor..."
         Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe" -OutFile "tailscale-setup.exe"
-        
-        echo "Sessiz kurulum yapılıyor..."
         Start-Process -FilePath ".\tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
-        
-        echo "Tailscale servisinin baslaması bekleniyor..."
         Start-Sleep -Seconds 10
-        
-        echo "Tailscale agına baglanılıyor..."
         & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTHKEY }}" --accept-routes
         echo "Tailscale baglantısı kuruldu!"
 
-    - name: Uzak Masaüstünü (RDP) Aktif Et
+    - name: Uzak Masaüstünü (RDP) Aktif Et ve Yeni Kullanıcı Oluştur
       run: |
+        # RDP Bağlantısını açıyoruz
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        net user runneradmin "AE_Runner_2026!" /add
-        net localgroup administrators runneradmin /add
+        
+        echo "Yeni RDP kullanıcısı (aeuser) oluşturuluyor..."
+        # Windows Server 2025/2022 uyumlu güvenli şifre oluşturma metodu
+        $Password = ConvertTo-SecureString "AERunner2026!" -AsPlainText -Force
+        New-LocalUser -Name "aeuser" -Password $Password -Description "AE RDP User" -FullName "AE User"
+        Add-LocalGroupMember -Group "Administrators" -Member "aeuser"
+        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "aeuser"
+        echo "Kullanıcı başarıyla eklendi!"
 
     - name: Sistemi Acik Tut ve Izle
       run: |
-        echo "Kullanıcı Adı: runneradmin"
-        echo "Şifre: AE_Runner_2026!"
-        echo "Windows Latest hazır. Tailscale panelinden IP'yi kontrol et."
+        echo "=== BAĞLANTI BİLGİLERİ ==="
+        echo "Kullanıcı Adı: aeuser"
+        echo "Şifre: AERunner2026!"
+        echo "=========================="
         
         $timeout = New-TimeSpan -Hours 5 -Minutes 50
         $stopwatch = [Diagnostics.Stopwatch]::StartNew()
@@ -63,4 +61,3 @@ jobs:
             Start-Sleep -Seconds 60
             echo "Runner aktif... Gecen süre: $($stopwatch.Elapsed.ToString('hh\:mm\:ss'))"
         }
-        
