@@ -1,38 +1,53 @@
-name: Windows 10 Altyapili AE Runner (2019)
+name: Windows Latest AE Runner (Lag Optimized)
 
 on:
-  workflow_dispatch: # Manuel başlatma butonu
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest # Windows Server 2019 (Windows 10 Altyapısı)
+    runs-on: windows-latest
     timeout-minutes: 360
 
     steps:
     - name: Depoyu Klonla
       uses: actions/checkout@v4
 
-    - name: Windows 10 Performans Optimizasyonu
+    - name: Windows Performans ve Ag Optimizasyonu (Lag Engelleme)
       run: |
-        echo "Gereksiz servisler ve efektler kapatılıyor..."
-        # Görsel efektleri kapatıp sistemi en iyi performansa alıyoruz
+        echo "Görsel efektler kapatılıyor..."
         $path = "HKCU:\Control Panel\Desktop"
         Set-ItemProperty -Path $path -Name "UserPreferencesMask" -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00))
-        
-        # Windows Defender korumasını kapatarak CPU'yu After Effects için rahatlatıyoruz
         Set-MpPreference -DisableRealtimeMonitoring $true
+        
+        echo "RDP Performans ve Akıcılık Ayarları Yapılıyor..."
+        # RDP bağlantısında performansı artırmak için ağ ve görüntü sıkıştırma ayarları
+        $RDPPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services"
+        if (-not (Test-Path $RDPPath)) { New-Item -Path $RDPPath -Force }
+        Set-ItemProperty -Path $RDPPath -Name "MinEncryptionLevel" -Value 1
+        
+        # Ağ paket gecikmelerini (Lag) azaltmak için TCP optimizasyonu
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Value 0xFFFFFFFF
         echo "Optimizasyon tamamlandı."
 
-    - name: Tailscale Kurulumu
-      uses: tailscale/github-action@v2
-      with:
-        authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+    - name: Windows Icin Tailscale Manuel Kurulumu
+      run: |
+        echo "Tailscale Windows yukleyicisi indiriliyor..."
+        Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe" -OutFile "tailscale-setup.exe"
+        
+        echo "Sessiz kurulum yapılıyor..."
+        Start-Process -FilePath ".\tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
+        
+        echo "Tailscale servisinin baslaması bekleniyor..."
+        Start-Sleep -Seconds 10
+        
+        echo "Tailscale agına baglanılıyor..."
+        & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTHKEY }}" --accept-routes
+        echo "Tailscale baglantısı kuruldu!"
 
     - name: Uzak Masaüstünü (RDP) Aktif Et
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        # RDP için kullanıcı adı ve şifre oluşturma
         net user runneradmin "AE_Runner_2026!" /add
         net localgroup administrators runneradmin /add
 
@@ -40,13 +55,12 @@ jobs:
       run: |
         echo "Kullanıcı Adı: runneradmin"
         echo "Şifre: AE_Runner_2026!"
-        echo "Windows Server 2019 (Windows 10) hazır. Tailscale üzerinden IP'yi alıp bağlanabilirsin."
+        echo "Windows Latest hazır. Tailscale panelinden IP'yi kontrol et."
         
-        # 5 saat 50 dakika boyunca sistemi açık tutan döngü
         $timeout = New-TimeSpan -Hours 5 -Minutes 50
         $stopwatch = [Diagnostics.Stopwatch]::StartNew()
         while ($stopwatch.Elapsed -lt $timeout) {
             Start-Sleep -Seconds 60
-            echo "Runner aktif... Kalan süre kontrol ediliyor. Geçen süre: $($stopwatch.Elapsed.ToString('hh\:mm\:ss'))"
+            echo "Runner aktif... Gecen süre: $($stopwatch.Elapsed.ToString('hh\:mm\:ss'))"
         }
         
