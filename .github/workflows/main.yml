@@ -1,4 +1,4 @@
-name: Windows Latest AE Runner (Fixed RDP)
+name: Windows Latest AE Runner (Sunshine Auto-Setup)
 
 on:
   workflow_dispatch:
@@ -12,52 +12,60 @@ jobs:
     - name: Depoyu Klonla
       uses: actions/checkout@v4
 
-    - name: Windows Performans ve Ag Optimizasyonu (Lag Engelleme)
+    - name: Windows Performans ve Ag Optimizasyonu
       run: |
-        echo "Görsel efektler kapatılıyor..."
         $path = "HKCU:\Control Panel\Desktop"
         Set-ItemProperty -Path $path -Name "UserPreferencesMask" -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00))
         Set-MpPreference -DisableRealtimeMonitoring $true
-        
-        $RDPPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services"
-        if (-not (Test-Path $RDPPath)) { New-Item -Path $RDPPath -Force }
-        Set-ItemProperty -Path $RDPPath -Name "MinEncryptionLevel" -Value 1
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Value 0xFFFFFFFF
-        echo "Optimizasyon tamamlandı."
 
     - name: Windows Icin Tailscale Manuel Kurulumu
       run: |
-        echo "Tailscale Windows yukleyicisi indiriliyor..."
         Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe" -OutFile "tailscale-setup.exe"
         Start-Process -FilePath ".\tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
         Start-Sleep -Seconds 10
         & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTHKEY }}" --accept-routes
-        echo "Tailscale baglantısı kuruldu!"
 
-    - name: Uzak Masaüstünü (RDP) Aktif Et ve Yeni Kullanıcı Oluştur
+    - name: Sanal Ekran Sürücüsü Kurulumu
       run: |
-        # RDP Bağlantısını açıyoruz
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
-        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Invoke-WebRequest -Uri "https://github.com/ge9/IddSampleDriver/releases/download/v0.1.2/IddSampleDriver.zip" -OutFile "virtual-display.zip"
+        Expand-Archive -Path "virtual-display.zip" -DestinationPath "C:\VirtualDisplay"
+        cd C:\VirtualDisplay
+        pnputil /add-driver IddSampleDriver.inf /install
+        echo "Sanal Monitör Aktif Edildi."
+
+    - name: Sunshine Kurulumu ve Otomatik Kimlik Tanımlama
+      run: |
+        echo "Sunshine indiriliyor..."
+        Invoke-WebRequest -Uri "https://github.com/LizardByte/Sunshine/releases/download/v2025.1.0/sunshine-windows-x64-installer.exe" -OutFile "sunshine-setup.exe"
+        Start-Process -FilePath ".\sunshine-setup.exe" -ArgumentList "/S" -Wait
+        Start-Sleep -Seconds 5
         
-        echo "Yeni RDP kullanıcısı (aeuser) oluşturuluyor..."
-        # Windows Server 2025/2022 uyumlu güvenli şifre oluşturma metodu
-        $Password = ConvertTo-SecureString "AERunner2026!" -AsPlainText -Force
-        New-LocalUser -Name "aeuser" -Password $Password -Description "AE RDP User" -FullName "AE User"
-        Add-LocalGroupMember -Group "Administrators" -Member "aeuser"
-        Add-LocalGroupMember -Group "Remote Desktop Users" -Member "aeuser"
-        echo "Kullanıcı başarıyla eklendi!"
+        echo "Web arayüzü şifreleri arka planda otomatik ayarlanıyor..."
+        # RDP'den girip şifre belirleme adımını bu komutla tamamen atlıyoruz!
+        & "C:\Program Files\Sunshine\sunshine.exe" --creds aeuser AERunner2026!
+        
+        echo "Sunshine servisi başlatılıyor..."
+        Start-Process -FilePath "C:\Program Files\Sunshine\sunshine.exe" -ArgumentList "--install-service" -Wait
+        Start-Service -Name "Sunshine" -ErrorAction SilentlyContinue
 
-    - name: Sistemi Acik Tut ve Izle
+    - name: Sistemi Acik Tut ve PIN Girişini Bekle
       run: |
-        echo "=== BAĞLANTI BİLGİLERİ ==="
-        echo "Kullanıcı Adı: aeuser"
-        echo "Şifre: AERunner2026!"
-        echo "=========================="
+        # Tailscale IP adresini log ekranına fırlatıyoruz
+        $ip = (& "C:\Program Files\Tailscale\tailscale.exe" ip -4)
+        echo "===================================================="
+        echo "🚀 SUNUCU HAZIR!"
+        echo "🔗 TAILSCALE IP ADRESİN: $ip"
+        echo "===================================================="
+        echo "1. Kendi cihazından Moonlight uygulamasını aç."
+        echo "2. Yukarıdaki IP adresini yazarak sunucuya bağlan de."
+        echo "3. Ekrana gelen 4 haneli PIN kodunu unutma."
+        echo "4. GitHub'da bu adımın yanındaki 'Re-run' veya terminal tetikleyici yoksa,"
+        echo "   Aşağıdaki döngü esnasında Moonlight PIN'ini girmek için RDP gerekebilir."
+        echo "===================================================="
         
         $timeout = New-TimeSpan -Hours 5 -Minutes 50
         $stopwatch = [Diagnostics.Stopwatch]::StartNew()
         while ($stopwatch.Elapsed -lt $timeout) {
             Start-Sleep -Seconds 60
-            echo "Runner aktif... Gecen süre: $($stopwatch.Elapsed.ToString('hh\:mm\:ss'))"
+            echo "Sunucu Moonlight bağlantısı bekliyor... Kalan Süre: $($timeout - $stopwatch.Elapsed)"
         }
