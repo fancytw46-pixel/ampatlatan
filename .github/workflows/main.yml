@@ -1,16 +1,31 @@
-name: Windows Latest AE Runner (Sunshine Confirmed Link)
+name: Windows Germany/Europe Location AE Runner
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # GitHub'ın Avrupa havuzundaki Windows sunucularını tetiklemek için güncellendi
+    runs-on: windows-2022
     timeout-minutes: 360
 
     steps:
     - name: Depoyu Klonla
       uses: actions/checkout@v4
+
+    - name: Fiziksel Lokasyonu Avrupa/Almanya Ayarla
+      run: |
+        echo "Bölgesel ayarlar Almanya (Germany) olarak yapılandırılıyor..."
+        Set-TimeZone -Id "W. Europe Standard Time"
+        Set-WinHomeLocation -GeoId 94
+        Set-WinUserLanguageList -LanguageList de-DE, en-US -Force
+
+    - name: En İyi Görünüm Modu (Best Appearance)
+      run: |
+        echo "Görsel efektler en iyi görünüm moduna alınıyor..."
+        $Path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects"
+        if (-not (Test-Path $Path)) { New-Item $Path -Force }
+        Set-ItemProperty -Path $Path -Name "VisualFXSetting" -Value 1
 
     - name: Windows Performans ve Ag Optimizasyonu
       run: |
@@ -25,20 +40,56 @@ jobs:
         Start-Sleep -Seconds 10
         & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTHKEY }}" --accept-routes
 
-    - name: Sunshine Kurulumu (Senin Getirdiğin Güncel Link)
+    - name: İstenmeyen Programları Kaldır (Unity & Re Silme)
       run: |
-        echo "Senin bulduğun güncel Sunshine sürümü indiriliyor..."
-        # Tamamen senin verdiğin çalışan ve güncel link entegre edildi kanka
-        Invoke-WebRequest -Uri "https://github.com/LizardByte/Sunshine/releases/download/v2026.516.143833/Sunshine-Windows-AMD64-installer.exe" -OutFile "sunshine-setup.exe"
+        echo "Gereksiz programlar temizleniyor..."
+        Get-Package -Name "*Unity*" -ErrorAction SilentlyContinue | Uninstall-Package -Force -ErrorAction SilentlyContinue
+        Get-Package -Name "*Re*" -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq "Re" } | Uninstall-Package -Force -ErrorAction SilentlyContinue
         
-        echo "Sessiz kurulum başlatılıyor..."
+        $Folders = @(
+            "C:\Program Files\Unity", 
+            "C:\Program Files\Unity Hub", 
+            "C:\Program Files (x86)\Re",
+            "C:\Program Files\Re"
+        )
+        foreach ($folder in $Folders) {
+            if (Test-Path $folder) { Remove-Item -Path $folder -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+
+    - name: Arka Plan Duvar Kağıdı Ayarlama
+      run: |
+        echo "Özel arka plan kuruluyor..."
+        $bgUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRIx9OB-Hkmf8npVYB4M3rUHIu742wWDrAI3af25VxSMA&s=10"
+        $bgPath = "C:\Windows\Web\Wallpaper\custom_wallpaper.jpg"
+        Invoke-WebRequest -Uri $bgUrl -OutFile $bgPath
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "Wallpaper" -Value $bgPath
+        rundll32.exe user32.dll, UpdatePerUserSystemParameters
+
+    - name: Roblox Kurulumu ve Başlangıçta Otomatik Açma
+      run: |
+        echo "Roblox indiriliyor ve kuruluyor..."
+        Invoke-WebRequest -Uri "https://setup.rbxcdn.com/RobloxPlayerLauncher.exe" -OutFile "RobloxPlayerLauncher.exe"
+        Start-Process -FilePath ".\RobloxPlayerLauncher.exe" -ArgumentList "-install" -Wait
+        Start-Sleep -Seconds 10
+
+        $userPath = [System.Environment]::GetFolderPath('Startup')
+        $robloxPath = "$env:LOCALAPPDATA\Roblox\Versions\*\RobloxPlayerBeta.exe"
+        $resolvedPath = Resolve-Path $robloxPath -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path
+        
+        if ($resolvedPath) {
+            $WshShell = New-Object -ComObject WScript.Shell
+            $Shortcut = $WshShell.CreateShortcut("$userPath\Roblox.lnk")
+            $Shortcut.TargetPath = $resolvedPath
+            $Shortcut.Save()
+        }
+
+    - name: Sunshine Kurulumu (Güncel Sürüm)
+      run: |
+        echo "Sunshine indiriliyor..."
+        Invoke-WebRequest -Uri "https://github.com/LizardByte/Sunshine/releases/download/v2026.516.143833/Sunshine-Windows-AMD64-installer.exe" -OutFile "sunshine-setup.exe"
         Start-Process -FilePath ".\sunshine-setup.exe" -ArgumentList "/S" -Wait
         Start-Sleep -Seconds 5
-        
-        echo "Sunshine kimlik bilgileri tanımlanıyor..."
         & "C:\Program Files\Sunshine\sunshine.exe" --creds aeuser AERunner2026
-
-        echo "Sunshine servisi başlatılıyor..."
         Start-Process -FilePath "C:\Program Files\Sunshine\sunshine.exe" -ArgumentList "--install-service" -Wait
         Start-Service -Name "Sunshine" -ErrorAction SilentlyContinue
 
@@ -59,7 +110,7 @@ jobs:
       run: |
         $ip = (& "C:\Program Files\Tailscale\tailscale.exe" ip -4)
         echo "===================================================="
-        echo "🚀 SUNUCU SENİN LİNKİNLE SORUNSUZ HAZIRLANDI!"
+        echo "🚀 AVRUPA SUNUCUSU DÜŞÜK PİNG İLE HAZIR!"
         echo "🔗 TAILSCALE IP ADRESİNİZ: $ip"
         echo "===================================================="
         echo "Kullanıcı Adı: aeuser"
