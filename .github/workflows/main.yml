@@ -5,7 +5,6 @@ on:
 
 jobs:
   build:
-    # GitHub'ın Avrupa havuzundaki Windows sunucularını tetiklemek için güncellendi
     runs-on: windows-2022
     timeout-minutes: 360
 
@@ -13,12 +12,14 @@ jobs:
     - name: Depoyu Klonla
       uses: actions/checkout@v4
 
-    - name: Fiziksel Lokasyonu Avrupa/Almanya Ayarla
+    - name: Fiziksel Lokasyonu Avrupa/Almanya Ayarla (Güvenli Yöntem)
       run: |
-        echo "Bölgesel ayarlar Almanya (Germany) olarak yapılandırılıyor..."
+        echo "Saat dilimi Almanya (W. Europe Standard Time) olarak ayarlanıyor..."
         Set-TimeZone -Id "W. Europe Standard Time"
-        Set-WinHomeLocation -GeoId 94
-        Set-WinUserLanguageList -LanguageList de-DE, en-US -Force
+        
+        echo "Bölgesel konum Registry üzerinden Almanya olarak yapılandırılıyor..."
+        # GeoID 94 = Almanya. Hata riski olmayan Registry yöntemi
+        Set-ItemProperty -Path "HKCU:\Control Panel\International\Geo" -Name "Nation" -Value "94" -Force
 
     - name: En İyi Görünüm Modu (Best Appearance)
       run: |
